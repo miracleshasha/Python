@@ -16,6 +16,7 @@ import config
 from trend_service import backtest as bt
 from trend_service import charts
 from trend_service import data as data_mod
+from trend_service import krx_api
 from trend_service import watchlist
 from trend_service.engine import analyze, quick_verdict
 
@@ -52,6 +53,12 @@ st.warning(
     "⚠️ 이 서비스는 **투자 자문이 아닙니다.** 기술적 지표는 확률을 높이는 참고 도구이며, "
     "어떤 조합도 100% 적중하지 않습니다. 실제 투자 판단과 손실 책임은 본인에게 있습니다."
 )
+
+# 데이터 소스 상태
+if krx_api.api_key():
+    st.caption("🟢 국내 시세: 금융위원회 주식시세정보 API · 미국 시세: yfinance")
+else:
+    st.caption("⚪ 국내 시세: yfinance 폴백 (환경변수 `DATA_GO_KR_API_KEY` 설정 시 금융위 API 사용) · 미국 시세: yfinance")
 
 tab_single, tab_watch, tab_back = st.tabs(["🔍 단일 분석", "⭐ 워치리스트", "🧪 백테스트"])
 

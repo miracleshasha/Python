@@ -1,8 +1,9 @@
 """시세 데이터 조회 계층.
 
-yfinance로 종목 OHLCV와 시장심리 지수(VIX, SOX)를 가져온다.
-한국 종목은 티커 접미사(.KS/.KQ)로, 미국 종목은 심볼 그대로 조회한다.
-외국인 수급은 국내 종목에 한해 pykrx가 설치돼 있을 때만 선택적으로 조회한다.
+국내 종목 시세는 **금융위원회 주식시세정보 API(data.go.kr)** 를 우선 사용하고
+(환경변수 DATA_GO_KR_API_KEY 필요), 실패 시 yfinance로 폴백한다.
+미국 종목과 시장심리 지수(VIX, SOX)는 yfinance로 조회한다.
+외국인/기관/개인 수급은 국내 종목에 한해 pykrx가 설치돼 있을 때 선택적으로 조회한다.
 """
 from __future__ import annotations
 
@@ -14,12 +15,13 @@ from typing import Optional
 
 import pandas as pd
 
-try:  # yfinance는 필수 의존성이지만, import 실패 시 친절히 알려준다.
+try:  # yfinance는 미국 종목/지수용. import 실패 시 친절히 알려준다.
     import yfinance as yf
 except ImportError:  # pragma: no cover
     yf = None
 
 import config
+from trend_service import krx_api
 
 
 # 한국 티커: 6자리 숫자(+선택적 .KS/.KQ). 예) 005930, 005930.KS
@@ -62,11 +64,19 @@ def _empty_ohlcv() -> pd.DataFrame:
 
 
 def fetch_ohlcv(ticker: str, period: str = config.DEFAULT_PERIOD) -> pd.DataFrame:
-    """yfinance로 OHLCV를 가져온다. 실패하면 빈 DataFrame."""
+    """OHLCV 조회. 국내=금융위 API 우선(→yfinance 폴백), 미국=yfinance."""
+    is_kr = bool(_KR_TICKER_RE.match(ticker.strip().upper()))
+
+    # 1) 국내 종목: 금융위원회 주식시세정보 API 우선
+    if is_kr and krx_api.api_key():
+        df = krx_api.fetch_ohlcv(ticker, period)
+        if not df.empty:
+            return df
+        # 키는 있으나 조회 실패 시 아래 yfinance로 폴백
+
+    # 2) yfinance (미국 종목, 또는 국내 폴백)
     if yf is None:
-        raise RuntimeError(
-            "yfinance가 설치돼 있지 않습니다. `pip install -r requirements.txt`를 실행하세요."
-        )
+        return _empty_ohlcv()
     try:
         df = yf.Ticker(ticker).history(period=period, auto_adjust=False)
     except Exception:
@@ -74,7 +84,6 @@ def fetch_ohlcv(ticker: str, period: str = config.DEFAULT_PERIOD) -> pd.DataFram
         return _empty_ohlcv()
     if df is None or df.empty:
         return _empty_ohlcv()
-    # 필요한 컬럼만, 결측 제거
     cols = ["Open", "High", "Low", "Close", "Volume"]
     df = df[[c for c in cols if c in df.columns]].dropna()
     return df
@@ -106,9 +115,13 @@ def get_ticker_name(ticker: str, is_korean: bool) -> Optional[str]:
     - 국내: pykrx `get_market_ticker_name`(네트워크). 없으면 yfinance로 폴백.
     - 미국: yfinance `fast_info`/`info`의 이름 필드.
     """
-    # 국내: pykrx 우선
+    # 국내: 금융위 API → pykrx 순
     code_match = re.match(r"^(\d{6})", ticker)
     if is_korean and code_match:
+        if krx_api.api_key():
+            name = krx_api.fetch_name(ticker)
+            if name:
+                return str(name)
         try:
             from pykrx import stock as krx
             name = krx.get_market_ticker_name(code_match.group(1))
