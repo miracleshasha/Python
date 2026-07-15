@@ -6,3 +6,5 @@ venv/
 .pytest_cache/
 .DS_Store
 *.log
+# 런타임 사용자 데이터(워치리스트, 알림 로그, 스캔 출력)
+data/

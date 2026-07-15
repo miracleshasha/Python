@@ -34,24 +34,56 @@ streamlit run app.py
 각 항목에 가중치를 두고 `(상승근거 − 하락근거)`를 **−100 ~ +100** 스코어로 환산한 뒤,
 임계값(기본 ±25)으로 상승/중립/하락을 구분합니다. 모든 파라미터는 `config.py`에서 조정할 수 있습니다.
 
+## 기능
+
+- **🔍 단일 분석** — 티커 하나의 추세를 근거·차트와 함께 판정
+- **⭐ 워치리스트** — 관심종목을 저장하고 전 종목 판정을 표로 한눈에 (`data/watchlist.json`)
+- **🧪 백테스트** — 과거 각 시점에서 그 시점까지의 데이터만으로(look-ahead 없음) 판정하고,
+  이후 보유기간 수익률을 집계해 상승/하락 신호별 **적중률·평균 수익률**을 검증
+- **🔔 자동 스캔** — `scan.py`가 워치리스트를 순회해 매수/청산 신호를 알림 로그로 남김(cron 연동)
+
 ## 구조
 
 ```
 stock-trend/
-├── app.py                 # Streamlit UI
-├── config.py              # 지표 파라미터 · 판정 임계값 · 가중치
+├── app.py                 # Streamlit UI (단일분석 / 워치리스트 / 백테스트 탭)
+├── scan.py                # 워치리스트 자동 스캔 CLI (cron용)
+├── config.py              # 지표 파라미터 · 판정 임계값 · 가중치 · 백테스트 설정
 ├── requirements.txt
 ├── trend_service/
 │   ├── data.py            # yfinance OHLCV + VIX/SOX + (선택)외국인 수급
 │   ├── indicators.py      # 지표 계산 (순수 함수)
-│   ├── engine.py          # 체크리스트 규칙 → 추세 판정
-│   └── charts.py          # plotly 차트
-└── tests/
-    └── test_indicators.py # 지표 단위 테스트
+│   ├── engine.py          # evaluate_price(포인트인타임 코어) + analyze(시장맥락 포함)
+│   ├── charts.py          # plotly 차트
+│   ├── watchlist.py       # 관심종목 JSON 저장/관리
+│   ├── backtest.py        # 포인트인타임 백테스트
+│   └── notify.py          # 알림 채널(콘솔/파일, 이메일·Slack 확장점)
+└── tests/                 # test_indicators / test_engine / test_watchlist / test_backtest
 ```
 
 로직 계층(`trend_service`)과 UI(`app.py`)를 분리해, 추후 FastAPI 등 다른 프론트에서
-그대로 재사용할 수 있습니다.
+그대로 재사용할 수 있습니다. `engine.evaluate_price()`는 네트워크 없이 가격만으로 판정하는
+포인트인타임 코어로, 백테스트가 과거 시점마다 look-ahead 없이 재사용합니다.
+
+## 자동 스캔 (알림)
+
+```bash
+python scan.py                 # 워치리스트 전체 스캔
+python scan.py 005930 AAPL     # 특정 티커만
+python scan.py --all           # 중립 종목도 출력
+```
+
+매수(상승)/청산(하락) 신호가 잡히면 콘솔과 `data/alerts.log`에 기록됩니다. 정기 실행 예:
+
+```cron
+0 16 * * 1-5  cd /path/to/stock-trend && python scan.py >> data/scan.out 2>&1
+```
+
+### 알림 확장 (이메일/Slack)
+
+`trend_service/notify.py`의 `send_email` / `send_slack`은 확장점만 남겨둔 상태입니다.
+실제 발송을 붙이려면 해당 함수를 구현하고 SMTP 계정·Slack Webhook 등 시크릿을 환경변수로
+주입하세요. (기본 제공 기능은 크리덴셜이 필요 없는 콘솔/파일 알림입니다.)
 
 ## 테스트
 

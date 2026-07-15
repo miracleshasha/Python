@@ -61,7 +61,11 @@ def fetch_ohlcv(ticker: str, period: str = config.DEFAULT_PERIOD) -> pd.DataFram
         raise RuntimeError(
             "yfinance가 설치돼 있지 않습니다. `pip install -r requirements.txt`를 실행하세요."
         )
-    df = yf.Ticker(ticker).history(period=period, auto_adjust=False)
+    try:
+        df = yf.Ticker(ticker).history(period=period, auto_adjust=False)
+    except Exception:
+        # 네트워크 차단/조회 실패 등은 빈 결과로 처리해 UI가 우아하게 폴백하도록 한다.
+        return _empty_ohlcv()
     if df is None or df.empty:
         return _empty_ohlcv()
     # 필요한 컬럼만, 결측 제거

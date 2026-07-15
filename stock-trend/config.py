@@ -59,6 +59,9 @@ BEAR_WEIGHTS = {
 VERDICT_BULL_THRESHOLD = 25        # 이 이상이면 상승
 VERDICT_BEAR_THRESHOLD = -25       # 이 이하면 하락
 
+# --- 백테스트 ---
+BACKTEST_HORIZON = 20              # 신호 발생 후 성과 측정 보유기간(거래일)
+
 # --- 데이터 ---
 DEFAULT_PERIOD = "1y"
 CACHE_TTL_SECONDS = 60 * 15        # 15분 캐시
