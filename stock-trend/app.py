@@ -133,7 +133,8 @@ def render_investor_flows(stock):
         return
     flows = data_mod.get_investor_flows(stock.ticker, days=20)
     if flows is None or flows.empty:
-        st.caption("수급 데이터를 불러오지 못했습니다. (pykrx 설치 또는 네트워크 필요 — `pip install pykrx`)")
+        st.caption("수급 데이터를 불러오지 못했습니다. KRX 조회가 막혔거나(네트워크/휴장) "
+                   "해당 종목 데이터가 없을 수 있습니다. (pykrx는 국내 네트워크에서 동작)")
         return
     totals = flows.sum()
     cols = st.columns(len(totals))

@@ -23,7 +23,7 @@ streamlit run app.py
 | **국내 종목 시세** | 금융위원회 주식시세정보 API (data.go.kr) | 인증키 필요, 없으면 yfinance로 폴백 |
 | 미국 종목 시세 | yfinance | |
 | VIX / SOX 지수 | yfinance | |
-| 외국인·기관·개인 수급 | pykrx (선택) | 국내 종목만 |
+| 외국인·기관·개인 수급 | pykrx (기본 포함) | 국내 종목만 · 금융위 API엔 없는 데이터라 별도 소스 |
 
 ### 국내 시세 API 인증키 설정
 
@@ -78,7 +78,7 @@ stock-trend/
 ├── config.py              # 지표 파라미터 · 판정 임계값 · 가중치 · 백테스트 설정
 ├── requirements.txt
 ├── trend_service/
-│   ├── data.py            # yfinance OHLCV + VIX/SOX + (선택)외국인 수급
+│   ├── data.py            # 금융위 API/yfinance OHLCV + VIX/SOX + pykrx 투자자 수급
 │   ├── indicators.py      # 지표 계산 (순수 함수)
 │   ├── engine.py          # evaluate_price(포인트인타임 코어) + analyze(시장맥락 포함)
 │   ├── charts.py          # plotly 차트
@@ -119,10 +119,14 @@ cd stock-trend
 pytest tests/ -v
 ```
 
-## 선택 기능: 국내 외국인 수급
+## 국내 투자자별 수급 (외국인·기관·개인)
 
-`requirements.txt`에서 `pykrx` 주석을 해제하고 설치하면, 국내 종목에 한해 외국인 순매수/순매도
-연속일 신호가 판정에 반영됩니다. 설치돼 있지 않아도 나머지 기능은 정상 동작합니다.
+투자자별 수급은 **금융위 주식시세정보 API에는 없는 데이터**라, `pykrx`(KRX)로 별도 조회합니다.
+`pykrx`는 `requirements.txt`에 기본 포함되어 `pip install -r requirements.txt` 시 함께 설치됩니다.
+설치 후 국내 종목의 외국인·기관·개인 순매수가 단일 분석 화면에 표시되고, 외국인 순매수/순매도
+연속일 신호가 판정에도 반영됩니다.
+
+> pykrx는 KRX 사이트를 조회하므로 **국내 네트워크가 열려 있어야** 동작합니다(휴장/차단 시 미표시).
 
 ## 향후 계획 (v1 이후)
 
