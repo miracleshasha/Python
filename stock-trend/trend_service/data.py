@@ -33,6 +33,12 @@ class StockData:
     raw_input: str         # 사용자가 입력한 원본
     is_korean: bool
     ohlcv: pd.DataFrame     # index=Date, columns=Open/High/Low/Close/Volume
+    name: Optional[str] = None  # 종목명(회사명). 조회 실패 시 None
+
+    @property
+    def display_name(self) -> str:
+        """UI 표기용: '종목명 (티커)' 또는 이름 없으면 티커."""
+        return f"{self.name} ({self.ticker})" if self.name else self.ticker
 
 
 def normalize_ticker(raw: str) -> tuple[str, bool]:
@@ -88,7 +94,38 @@ def get_stock_data(raw_ticker: str, period: str = config.DEFAULT_PERIOD) -> Stoc
     """종목 데이터 조회 진입점(캐시 포함)."""
     ticker, is_kr = normalize_ticker(raw_ticker)
     ohlcv = _fetch_cached(ticker, period, _time_bucket())
-    return StockData(ticker=ticker, raw_input=raw_ticker, is_korean=is_kr, ohlcv=ohlcv.copy())
+    name = get_ticker_name(ticker, is_kr) if not ohlcv.empty else None
+    return StockData(ticker=ticker, raw_input=raw_ticker, is_korean=is_kr,
+                     ohlcv=ohlcv.copy(), name=name)
+
+
+@lru_cache(maxsize=256)
+def get_ticker_name(ticker: str, is_korean: bool) -> Optional[str]:
+    """종목명(회사명)을 조회한다. 실패 시 None(폴백).
+
+    - 국내: pykrx `get_market_ticker_name`(네트워크). 없으면 yfinance로 폴백.
+    - 미국: yfinance `fast_info`/`info`의 이름 필드.
+    """
+    # 국내: pykrx 우선
+    code_match = re.match(r"^(\d{6})", ticker)
+    if is_korean and code_match:
+        try:
+            from pykrx import stock as krx
+            name = krx.get_market_ticker_name(code_match.group(1))
+            if name:
+                return str(name)
+        except Exception:
+            pass
+    # yfinance 폴백 (미국 종목 또는 국내 pykrx 실패 시)
+    if yf is not None:
+        try:
+            info = getattr(yf.Ticker(ticker), "info", None) or {}
+            for key in ("longName", "shortName", "displayName"):
+                if info.get(key):
+                    return str(info[key])
+        except Exception:
+            pass
+    return None
 
 
 def get_market_index(symbol: str, period: str = config.DEFAULT_PERIOD) -> pd.DataFrame:
@@ -122,5 +159,40 @@ def get_foreign_netbuy(ticker: str, days: int = 10) -> Optional[pd.Series]:
         if df is None or df.empty or "외국인합계" not in df.columns:
             return None
         return df["외국인합계"].tail(days)
+    except Exception:
+        return None
+
+
+def get_investor_flows(ticker: str, days: int = 20) -> Optional[pd.DataFrame]:
+    """국내 종목 투자자별 순매수(거래대금) 최근 시계열. pykrx 없으면 None.
+
+    반환 DataFrame: index=날짜, columns=['외국인', '기관', '개인'] (순매수 금액, +매수/-매도).
+    미국 종목/데이터 부재 시 None.
+    """
+    code_match = re.match(r"^(\d{6})", ticker)
+    if not code_match:
+        return None
+    try:
+        from pykrx import stock as krx  # 선택적 의존성
+    except ImportError:
+        return None
+    try:
+        code = code_match.group(1)
+        end = datetime.now()
+        start = end - pd.Timedelta(days=days * 3 + 15)
+        df = krx.get_market_trading_value_by_date(
+            start.strftime("%Y%m%d"), end.strftime("%Y%m%d"), code
+        )
+        if df is None or df.empty:
+            return None
+        # pykrx 컬럼: 기관합계/외국인합계/개인/기타법인 등 (버전에 따라 상이)
+        colmap = {}
+        for src, dst in (("외국인합계", "외국인"), ("기관합계", "기관"), ("개인", "개인")):
+            if src in df.columns:
+                colmap[src] = dst
+        if not colmap:
+            return None
+        out = df[list(colmap)].rename(columns=colmap).tail(days)
+        return out
     except Exception:
         return None

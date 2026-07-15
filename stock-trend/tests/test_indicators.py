@@ -92,6 +92,16 @@ def test_bollinger_and_squeeze():
     assert ind.is_squeeze(bb) is True
 
 
+def test_envelope_bands():
+    s = _series([100.0] * 40)
+    env = ind.envelope(s, period=20, pct=0.06)
+    assert {"Mid", "Upper", "Lower"} == set(env.columns)
+    # 평평한 100 → 중심 100, 상단 106, 하단 94
+    assert env["Mid"].iloc[-1] == pytest.approx(100.0)
+    assert env["Upper"].iloc[-1] == pytest.approx(106.0)
+    assert env["Lower"].iloc[-1] == pytest.approx(94.0)
+
+
 def test_volume_signal_quadrants():
     up_vol = ind.volume_signal(_ohlcv([10, 11], [100, 200]))
     assert up_vol["price_up"] is True

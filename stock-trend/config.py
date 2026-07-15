@@ -27,6 +27,10 @@ BB_PERIOD = 20
 BB_STD = 2.0
 BB_SQUEEZE_QUANTILE = 0.25         # 밴드폭이 하위 25%면 스퀴즈로 간주
 
+# --- 엔벨로프 ---
+ENVELOPE_PERIOD = 20               # 중심 이동평균 기간
+ENVELOPE_PCT = 0.06                # 중심선 ± 6% 밴드
+
 # --- 시장심리(VIX) ---
 VIX_CALM = 15                      # 과도한 안심
 VIX_NORMAL = 20

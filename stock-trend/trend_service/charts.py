@@ -39,6 +39,27 @@ def build_chart(df: pd.DataFrame, result: TrendResult, title: str = "") -> go.Fi
                 row=1, col=1,
             )
 
+    # 볼린저밴드 (변동성 기반, 점선 · 상하단 사이 음영)
+    bb = ind.get("bollinger")
+    if bb is not None:
+        fig.add_trace(go.Scatter(x=bb.index, y=bb["Upper"], name="볼린저 상단",
+                                 line=dict(color="rgba(120,120,200,0.7)", dash="dot", width=1)),
+                      row=1, col=1)
+        fig.add_trace(go.Scatter(x=bb.index, y=bb["Lower"], name="볼린저 하단",
+                                 line=dict(color="rgba(120,120,200,0.7)", dash="dot", width=1),
+                                 fill="tonexty", fillcolor="rgba(120,120,200,0.08)"),
+                      row=1, col=1)
+
+    # 엔벨로프 (고정 비율 기반, 파선)
+    env = ind.get("envelope")
+    if env is not None:
+        fig.add_trace(go.Scatter(x=env.index, y=env["Upper"], name="엔벨로프 상단",
+                                 line=dict(color="rgba(220,120,60,0.8)", dash="dash", width=1)),
+                      row=1, col=1)
+        fig.add_trace(go.Scatter(x=env.index, y=env["Lower"], name="엔벨로프 하단",
+                                 line=dict(color="rgba(220,120,60,0.8)", dash="dash", width=1)),
+                      row=1, col=1)
+
     # 2) 거래량
     vol = ind.get("volume")
     if vol is not None:

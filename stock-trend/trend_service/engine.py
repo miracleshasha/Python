@@ -139,6 +139,7 @@ def evaluate_price(df: pd.DataFrame) -> PriceEval:
         "rsi": rsi_s,
         "macd": macd_df,
         "bollinger": bb,
+        "envelope": ind.envelope(close),
         "obv": obv_s,
         "volume": df["Volume"],
         "squeeze": ind.is_squeeze(bb),

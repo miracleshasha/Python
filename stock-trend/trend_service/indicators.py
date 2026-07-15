@@ -151,6 +151,18 @@ def bollinger(close: pd.Series, period=None, num_std=None) -> pd.DataFrame:
     return pd.DataFrame({"Mid": mid, "Upper": upper, "Lower": lower, "Width": width})
 
 
+def envelope(close: pd.Series, period: int = None, pct: float = None) -> pd.DataFrame:
+    """엔벨로프: 이동평균선 ± 일정 비율(%) 밴드.
+
+    볼린저밴드가 변동성(표준편차) 기반인 것과 달리, 엔벨로프는 고정 비율 기반이라
+    추세 이탈/과열 구간을 직관적으로 본다.
+    """
+    period = period or config.ENVELOPE_PERIOD
+    pct = pct if pct is not None else config.ENVELOPE_PCT
+    mid = close.rolling(period, min_periods=period).mean()
+    return pd.DataFrame({"Mid": mid, "Upper": mid * (1 + pct), "Lower": mid * (1 - pct)})
+
+
 def is_squeeze(bb: pd.DataFrame, quantile: float = None) -> bool:
     """현재 밴드폭이 과거 대비 하위 분위 이하면 스퀴즈(변동성 수축)."""
     quantile = quantile if quantile is not None else config.BB_SQUEEZE_QUANTILE
