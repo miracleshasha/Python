@@ -150,6 +150,15 @@ def get_market_index(symbol: str, period: str = config.DEFAULT_PERIOD) -> pd.Dat
         return _empty_ohlcv()
 
 
+def pykrx_installed() -> bool:
+    """pykrx 라이브러리 설치 여부."""
+    try:
+        import pykrx  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def get_foreign_netbuy(ticker: str, days: int = 10) -> Optional[pd.Series]:
     """국내 종목 외국인 순매수(주식수) 최근 시계열. pykrx 없으면 None.
 
