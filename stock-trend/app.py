@@ -9,8 +9,20 @@
 """
 from __future__ import annotations
 
+import os
+
 import pandas as pd
 import streamlit as st
+
+# Streamlit Secrets → 환경변수 브리지: Streamlit Community Cloud의 Secrets에
+# DATA_GO_KR_API_KEY를 넣으면, 아래에서 os.environ으로 옮겨 krx_api가 그대로 인식한다.
+# (로직 모듈은 streamlit 비의존 유지. secrets가 없으면 조용히 넘어간다.)
+try:
+    for _k in ("DATA_GO_KR_API_KEY",):
+        if _k in st.secrets and not os.environ.get(_k):
+            os.environ[_k] = str(st.secrets[_k])
+except Exception:
+    pass
 
 import config
 from trend_service import backtest as bt

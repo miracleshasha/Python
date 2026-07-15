@@ -38,6 +38,9 @@ streamlit run app.py
 키가 설정되면 국내 종목(6자리 코드)은 이 API로 조회하고 종목명도 함께 가져옵니다.
 키가 없으면 자동으로 yfinance로 폴백합니다.
 
+> 📦 **배포**: 로컬 실행 / Streamlit Community Cloud(무료) / Docker 배포 방법은
+> [`DEPLOY.md`](DEPLOY.md)를 참고하세요. (Vercel은 Streamlit에 부적합 — 이유도 문서에 설명)
+
 브라우저가 열리면 티커를 입력하고 **분석**을 누르세요.
 - 한국 종목: 6자리 코드 — `005930`(삼성전자), `000660`(SK하이닉스), 코스닥은 `.KQ`
 - 미국 종목: 심볼 — `AAPL`, `NVDA`

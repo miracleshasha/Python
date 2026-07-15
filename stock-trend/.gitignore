@@ -8,3 +8,6 @@ venv/
 *.log
 # 런타임 사용자 데이터(워치리스트, 알림 로그, 스캔 출력)
 data/
+# 시크릿 (인증키 등) — 예제 파일만 커밋
+.streamlit/secrets.toml
+.env
