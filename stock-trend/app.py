@@ -2,10 +2,9 @@
 
 실행: streamlit run app.py
 
-탭 구성:
-- 단일 분석: 티커 하나의 추세를 근거·차트와 함께 판정
-- 워치리스트: 관심종목을 저장하고 전 종목 판정을 한눈에
-- 백테스트: 과거 시점 판정의 사후 성과(적중률·평균 수익률) 검증
+구성:
+- 사이드바: 종목 검색 + ⭐ 관심종목(즐겨찾기) 상시 노출 + 데이터소스 상태
+- 메인: 단일 분석 / 워치리스트 / 백테스트 탭 (카드형 레이아웃)
 """
 from __future__ import annotations
 
@@ -14,9 +13,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-# Streamlit Secrets → 환경변수 브리지: Streamlit Community Cloud의 Secrets에
-# DATA_GO_KR_API_KEY를 넣으면, 아래에서 os.environ으로 옮겨 krx_api가 그대로 인식한다.
-# (로직 모듈은 streamlit 비의존 유지. secrets가 없으면 조용히 넘어간다.)
+# Streamlit Secrets → 환경변수 브리지 (Streamlit Community Cloud Secrets 지원).
 try:
     for _k in ("DATA_GO_KR_API_KEY",):
         if _k in st.secrets and not os.environ.get(_k):
@@ -25,107 +22,112 @@ except Exception:
     pass
 
 import config
+import ui
 from trend_service import backtest as bt
 from trend_service import charts
 from trend_service import data as data_mod
 from trend_service import krx_api
 from trend_service import watchlist
-from trend_service.engine import analyze, quick_verdict
+from trend_service.engine import analyze
 
 st.set_page_config(page_title="종목 추세 판단", page_icon="📈", layout="wide")
-
-VERDICT_STYLE = {
-    "상승": ("🟢", "#16a34a"),
-    "하락": ("🔴", "#dc2626"),
-    "중립": ("⚪", "#6b7280"),
-}
-DIRECTION_ICON = {"bull": "✅", "bear": "❌", "neutral": "▫️", "na": "➖"}
+ui.inject_css()
 
 PERIOD_MAP = {"6개월": "6mo", "1년": "1y", "2년": "2y"}
 
-st.title("📈 종목 추세 판단")
-st.caption(
-    "이동평균 기울기·거래량/OBV·RSI/MACD·볼린저밴드·엔벨로프·VIX/SOX 시장심리를 규칙으로 종합해 "
-    "추세를 판정합니다."
-)
+# 세션 상태 초기화
+st.session_state.setdefault("ticker", "005930")
+st.session_state.setdefault("period", "1y")
+st.session_state.setdefault("analysis", None)   # (stock, result) 튜플 캐시
 
-# 티커 입력 안내 — 눈에 잘 띄게 빨간색·큰 폰트로 강조 (요청 5)
+
+# --------------------------------------------------------------------------
+# 분석 실행 (세션 상태에 결과 저장 → 다른 버튼 클릭에도 화면 유지)
+# --------------------------------------------------------------------------
+def run_analysis(ticker: str, period: str):
+    ticker = ticker.strip()
+    if not ticker:
+        return
+    st.session_state.ticker = ticker
+    st.session_state.period = period
+    with st.spinner(f"'{ticker}' 데이터를 분석 중..."):
+        stock = data_mod.get_stock_data(ticker, period)
+    if stock.ohlcv.empty:
+        st.session_state.analysis = ("error", ticker)
+    else:
+        st.session_state.analysis = (stock, analyze(stock, period))
+
+
+def _load_favorite(ticker: str):
+    """사이드바 관심종목 클릭 → 해당 종목 분석."""
+    run_analysis(ticker, st.session_state.period)
+
+
+# --------------------------------------------------------------------------
+# 사이드바: 검색 + 관심종목(즐겨찾기) 상시 노출
+# --------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown("## 📈 종목 추세 판단")
+    st.caption("이동평균·거래량/OBV·RSI/MACD·볼린저·엔벨로프·VIX/SOX 종합 판정")
+
+    st.markdown("### 🔎 종목 검색")
+    s_ticker = st.text_input("티커", value=st.session_state.ticker,
+                             placeholder="한국 6자리(005930) / 미국 심볼(AAPL)", key="search_input")
+    s_period = st.selectbox("기간", list(PERIOD_MAP),
+                            index=list(PERIOD_MAP.values()).index(st.session_state.period))
+    b1, b2 = st.columns(2)
+    if b1.button("분석", type="primary", use_container_width=True):
+        run_analysis(s_ticker, PERIOD_MAP[s_period])
+    if b2.button("⭐ 관심등록", use_container_width=True):
+        if s_ticker.strip():
+            watchlist.add(s_ticker)
+            st.toast(f"'{s_ticker.strip()}' 관심종목 추가")
+
+    st.divider()
+    st.markdown("### ⭐ 관심종목")
+    favs = watchlist.load()
+    if not favs:
+        st.caption("아직 없습니다. 위 **⭐ 관심등록**으로 추가하세요.")
+    else:
+        for raw in favs:
+            fc1, fc2 = st.columns([4, 1])
+            if fc1.button(f"📊 {raw}", key=f"fav_{raw}", use_container_width=True):
+                _load_favorite(raw)
+            if fc2.button("🗑", key=f"favdel_{raw}", use_container_width=True):
+                watchlist.remove(raw)
+                st.rerun()
+
+    st.divider()
+    if krx_api.api_key():
+        st.caption("🟢 국내: 금융위 API · 미국: yfinance")
+    else:
+        st.caption("⚪ 국내: yfinance 폴백 · 미국: yfinance\n\n`DATA_GO_KR_API_KEY` 설정 시 금융위 API 사용")
+
+
+# --------------------------------------------------------------------------
+# 메인 헤더 + 안내
+# --------------------------------------------------------------------------
 st.markdown(
     """
     <div style="border:2px solid #dc2626; background:rgba(220,38,38,0.06);
-                border-radius:10px; padding:14px 18px; margin:8px 0 4px 0;">
-      <span style="color:#dc2626; font-size:1.35rem; font-weight:800;">
+                border-radius:10px; padding:12px 18px; margin-bottom:10px;">
+      <span style="color:#dc2626; font-size:1.25rem; font-weight:800;">
         📌 한국 종목은 6자리 코드(예: 005930), 미국 종목은 심볼(예: AAPL)
       </span>
     </div>
     """,
     unsafe_allow_html=True,
 )
-st.warning(
-    "⚠️ 이 서비스는 **투자 자문이 아닙니다.** 기술적 지표는 확률을 높이는 참고 도구이며, "
-    "어떤 조합도 100% 적중하지 않습니다. 실제 투자 판단과 손실 책임은 본인에게 있습니다."
-)
-
-# 데이터 소스 상태
-if krx_api.api_key():
-    st.caption("🟢 국내 시세: 금융위원회 주식시세정보 API · 미국 시세: yfinance")
-else:
-    st.caption("⚪ 국내 시세: yfinance 폴백 (환경변수 `DATA_GO_KR_API_KEY` 설정 시 금융위 API 사용) · 미국 시세: yfinance")
+st.caption("⚠️ 투자 자문이 아닙니다. 기술적 지표는 확률을 높이는 참고 도구이며, 손실 책임은 본인에게 있습니다.")
 
 tab_single, tab_watch, tab_back = st.tabs(["🔍 단일 분석", "⭐ 워치리스트", "🧪 백테스트"])
 
 
 # --------------------------------------------------------------------------
-# 탭 1: 단일 분석
+# 탭 1: 단일 분석 (세션 상태의 분석 결과를 렌더)
 # --------------------------------------------------------------------------
-def render_result(stock, result):
-    icon, color = VERDICT_STYLE.get(result.verdict, ("⚪", "#6b7280"))
-
-    # 종목명 헤더 (요청 1)
-    st.markdown(f"### {stock.display_name}")
-
-    # 최종 결과 강조 박스 (요청 3) — 큰 폰트·색상으로 돋보이게
-    st.markdown(
-        f"""
-        <div style="border:3px solid {color}; border-radius:14px;
-                    padding:18px 22px; margin:6px 0 14px 0;
-                    background:{color}12; text-align:center;">
-          <div style="font-size:1.1rem; color:#6b7280; font-weight:600;">최종 결과</div>
-          <div style="font-size:2.6rem; font-weight:900; color:{color}; line-height:1.2;">
-            {icon} {result.verdict}
-          </div>
-          <div style="font-size:1.1rem; color:{color}; font-weight:700;">
-            종합 스코어 {result.score:+d}
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.progress(int((result.score + 100) / 2))
-    st.caption(
-        f"조회 티커: `{stock.ticker}` · 상승근거 {result.indicators.get('bull_score', 0)} / "
-        f"하락근거 {result.indicators.get('bear_score', 0)}"
-    )
-    if result.indicators.get("squeeze"):
-        st.info("🔎 볼린저밴드 스퀴즈(변동성 수축) → 곧 큰 방향성이 나올 수 있습니다. 방향은 거래량으로 확인.")
-
-    st.subheader("판정 근거")
-    for r in result.reasons:
-        st.write(f"{DIRECTION_ICON.get(r.direction, '▫️')} **{r.label}**"
-                 + (f" — {r.detail}" if r.detail else ""))
-
-    st.subheader("차트")
-    st.caption("가격 패널: 캔들 + 이동평균(20/60/120) + 볼린저밴드(점선) + 엔벨로프(파선, ±6%)")
-    st.plotly_chart(charts.build_chart(stock.ohlcv, result, title=stock.ticker),
-                    use_container_width=True)
-
-    render_investor_flows(stock)
-
-
 def render_investor_flows(stock):
-    """외국인·기관·개인 수급 표 + 막대차트 (요청 4). 국내 종목·pykrx 있을 때만."""
-    st.subheader("투자자별 수급 (외국인·기관·개인)")
+    ui.section_title("투자자별 수급 (외국인·기관·개인)")
     if not stock.is_korean:
         st.caption("해외 종목은 투자자별 수급 데이터를 제공하지 않습니다.")
         return
@@ -133,65 +135,54 @@ def render_investor_flows(stock):
     if flows is None or flows.empty:
         st.caption("수급 데이터를 불러오지 못했습니다. (pykrx 설치 또는 네트워크 필요 — `pip install pykrx`)")
         return
-    # 최근 순매수 합계 요약 + 일자별 막대차트
     totals = flows.sum()
     cols = st.columns(len(totals))
     for col, (name, val) in zip(cols, totals.items()):
-        col.metric(f"{name} 순매수(최근 20일)", f"{val/1e8:,.1f}억")
+        col.metric(f"{name} 순매수(20일)", f"{val/1e8:,.1f}억")
     st.bar_chart(flows)
     with st.expander("일자별 수급 표 보기"):
         st.dataframe(flows.iloc[::-1], use_container_width=True)
 
 
 with tab_single:
-    c1, c2, c3 = st.columns([3, 2, 1])
-    with c1:
-        ticker = st.text_input("종목 티커", value="005930", placeholder="예: 005930, 000660.KQ, AAPL")
-    with c2:
-        period_label = st.selectbox("기간", list(PERIOD_MAP), index=1)
-    with c3:
-        st.write("")
-        st.write("")
-        run = st.button("분석", type="primary", use_container_width=True)
-
-    add_col, _ = st.columns([1, 4])
-    with add_col:
-        if st.button("⭐ 워치리스트에 추가", use_container_width=True) and ticker.strip():
-            watchlist.add(ticker)
-            st.success(f"'{ticker}' 추가됨")
-
-    if run and ticker.strip():
-        period = PERIOD_MAP[period_label]
-        with st.spinner("데이터를 불러오는 중..."):
-            stock = data_mod.get_stock_data(ticker, period)
-        if stock.ohlcv.empty:
-            st.error(f"'{ticker}' 데이터를 가져오지 못했습니다. 티커를 확인하세요.")
-        else:
-            render_result(stock, analyze(stock, period))
+    analysis = st.session_state.analysis
+    if analysis is None:
+        st.info("👈 왼쪽 사이드바에서 종목을 검색하거나 관심종목을 눌러 분석을 시작하세요.")
+    elif analysis[0] == "error":
+        st.error(f"'{analysis[1]}' 데이터를 가져오지 못했습니다. 티커를 확인하세요. "
+                 "(한국=6자리 숫자, 미국=심볼)")
     else:
-        st.info("티커를 입력하고 **분석**을 눌러주세요.")
+        stock, result = analysis
+        col_star, _ = st.columns([1, 4])
+        with col_star:
+            if st.button("⭐ 이 종목 관심등록", use_container_width=True):
+                watchlist.add(stock.raw_input)
+                st.toast(f"'{stock.raw_input}' 관심종목 추가")
+
+        ui.verdict_hero(stock, result)
+        ui.kpi_row(result)
+
+        ui.section_title("판정 근거")
+        ui.reason_columns(result.reasons)
+
+        ui.section_title("차트")
+        st.caption("캔들 + 이동평균(20/60/120) + 볼린저밴드(점선) + 엔벨로프(파선, ±6%) · 하단 거래량/RSI/MACD")
+        st.plotly_chart(charts.build_chart(stock.ohlcv, result, title=stock.display_name),
+                        use_container_width=True)
+
+        render_investor_flows(stock)
 
 
 # --------------------------------------------------------------------------
-# 탭 2: 워치리스트
+# 탭 2: 워치리스트 대시보드
 # --------------------------------------------------------------------------
 with tab_watch:
-    st.subheader("관심종목 대시보드")
+    ui.section_title("관심종목 대시보드")
     period2 = PERIOD_MAP[st.selectbox("기간", list(PERIOD_MAP), index=1, key="wl_period")]
-
-    ac1, ac2 = st.columns([3, 1])
-    with ac1:
-        new_t = st.text_input("종목 추가", placeholder="예: AAPL", key="wl_add")
-    with ac2:
-        st.write("")
-        st.write("")
-        if st.button("추가", use_container_width=True) and new_t.strip():
-            watchlist.add(new_t)
-            st.rerun()
 
     items = watchlist.load()
     if not items:
-        st.info("저장된 관심종목이 없습니다. 위에서 추가하거나, 단일 분석 탭에서 ⭐로 추가하세요.")
+        st.info("저장된 관심종목이 없습니다. 사이드바에서 **⭐ 관심등록**으로 추가하세요.")
     else:
         if st.button("🔄 전체 판정 새로고침", type="primary"):
             rows = []
@@ -205,24 +196,19 @@ with tab_watch:
                     rows.append({"티커": stock.ticker, "종목명": stock.name or "-",
                                  "판정": res.verdict, "스코어": res.score})
                 prog.progress((i + 1) / len(items))
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-        st.write("**목록 관리**")
-        for raw in items:
-            rc1, rc2 = st.columns([4, 1])
-            rc1.write(f"• {raw}")
-            if rc2.button("삭제", key=f"del_{raw}"):
-                watchlist.remove(raw)
-                st.rerun()
+            st.session_state["wl_rows"] = rows
+        if st.session_state.get("wl_rows"):
+            df = pd.DataFrame(st.session_state["wl_rows"])
+            st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 # --------------------------------------------------------------------------
 # 탭 3: 백테스트
 # --------------------------------------------------------------------------
 with tab_back:
-    st.subheader("판정 성과 백테스트")
-    st.caption("과거 각 시점에서 그 시점까지의 데이터만으로 판정하고, 이후 보유기간 수익률을 집계합니다. "
-               "(look-ahead 없음) 가격 기반 코어 신호만 사용합니다.")
+    ui.section_title("판정 성과 백테스트")
+    st.caption("과거 각 시점에서 그 시점까지의 데이터만으로 판정하고(look-ahead 없음), "
+               "이후 보유기간 수익률을 집계합니다. 가격 기반 코어 신호만 사용.")
 
     bc1, bc2, bc3, bc4 = st.columns([2, 2, 2, 1])
     with bc1:
@@ -253,10 +239,10 @@ with tab_back:
                               help=f"{result.bull.wins}/{result.bull.count} · 평균 {result.bull.avg_return:+.2%}")
                     m3.metric("🔴 하락신호 적중률", f"{result.bear.hit_rate:.0%}",
                               help=f"{result.bear.wins}/{result.bear.count} · 평균 {result.bear.avg_return:+.2%}")
-                    st.write(pd.DataFrame([
+                    st.dataframe(pd.DataFrame([
                         {"신호": "상승", "표본": result.bull.count, "적중률": f"{result.bull.hit_rate:.0%}",
                          "평균수익률": f"{result.bull.avg_return:+.2%}"},
                         {"신호": "하락", "표본": result.bear.count, "적중률": f"{result.bear.hit_rate:.0%}",
                          "평균수익률": f"{result.bear.avg_return:+.2%}"},
-                    ]))
+                    ]), use_container_width=True, hide_index=True)
                     st.caption("⚠️ 과거 성과가 미래 수익을 보장하지 않습니다. 표본 수가 작으면 신뢰도가 낮습니다.")

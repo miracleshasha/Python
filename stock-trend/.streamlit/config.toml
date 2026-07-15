@@ -1,7 +1,6 @@
 # Streamlit 배포 설정
 [server]
 headless = true
-enableCORS = false
 enableXsrfProtection = true
 
 [browser]
