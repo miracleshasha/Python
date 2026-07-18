@@ -7,7 +7,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from trend_service.data import StockData  # noqa: E402
+from core.data import StockData  # noqa: E402
 from trend_service.engine import evaluate_price, quick_verdict, score_to_verdict  # noqa: E402
 
 

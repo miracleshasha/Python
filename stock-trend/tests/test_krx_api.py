@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from trend_service import krx_api  # noqa: E402
+from core import krx_api  # noqa: E402
 
 
 # getStockPriceInfo 응답의 대표 구조(축약)

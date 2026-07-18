@@ -22,11 +22,8 @@ except ImportError:  # pragma: no cover
     yf = None
 
 import config
-from trend_service import krx_api
-
-
-# 한국 티커: 6자리 숫자(+선택적 .KS/.KQ). 예) 005930, 005930.KS
-_KR_TICKER_RE = re.compile(r"^\d{6}(\.(KS|KQ))?$", re.IGNORECASE)
+from core import krx_api
+from core.markets import _KR_TICKER_RE, normalize_ticker  # noqa: F401 (re-export)
 
 
 @dataclass
@@ -42,22 +39,6 @@ class StockData:
     def display_name(self) -> str:
         """UI 표기용: '종목명 (티커)' 또는 이름 없으면 티커."""
         return f"{self.name} ({self.ticker})" if self.name else self.ticker
-
-
-def normalize_ticker(raw: str) -> tuple[str, bool]:
-    """사용자 입력을 yfinance 조회용 티커로 정규화한다.
-
-    반환: (조회용 티커, 한국 종목 여부)
-    - '005930' -> ('005930.KS', True)   # 접미사 없으면 코스피로 가정
-    - '005930.KQ' -> ('005930.KQ', True)
-    - 'AAPL' -> ('AAPL', False)
-    """
-    t = raw.strip().upper()
-    if _KR_TICKER_RE.match(t):
-        if "." not in t:
-            t = f"{t}.KS"
-        return t, True
-    return t, False
 
 
 def _empty_ohlcv() -> pd.DataFrame:
