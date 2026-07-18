@@ -68,6 +68,8 @@ streamlit run app.py
 - **🧪 백테스트** — 과거 각 시점에서 그 시점까지의 데이터만으로(look-ahead 없음) 판정하고,
   이후 보유기간 수익률을 집계해 상승/하락 신호별 **적중률·평균 수익률**을 검증
 - **🔔 자동 스캔** — `scan.py`가 워치리스트를 순회해 매수/청산 신호를 알림 로그로 남김(cron 연동)
+- **🧮 퀀트 스크리너** — 코스피200·코스닥150 유니버스에서 **밸류·퀄리티·모멘텀** 팩터
+  z-score 가중합(기본 40/30/30)으로 종목 랭킹. 데이터는 pykrx(국내 네트워크 필요)
 
 ## 구조
 
@@ -79,7 +81,8 @@ Streamlit **멀티페이지** 앱이며, 공용 로직은 `core/` 패키지에, 
 stock-trend/
 ├── app.py                 # 홈/랜딩 (멀티페이지 엔트리)
 ├── pages/
-│   └── 1_📈_추세판정.py    # 추세 판정 UI (단일분석 / 워치리스트 / 백테스트)
+│   ├── 1_📈_추세판정.py    # 추세 판정 UI (단일분석 / 워치리스트 / 백테스트)
+│   └── 2_🧮_퀀트_스크리너.py # 팩터(밸류·퀄리티·모멘텀) 랭킹
 ├── scan.py                # 워치리스트 자동 스캔 CLI (cron용)
 ├── ui.py                  # 공통 UI 컴포넌트/CSS
 ├── config.py              # 지표·판정·백테스트·(향후)퀀트 파라미터
@@ -92,11 +95,18 @@ stock-trend/
 │   ├── charts.py          # plotly 차트
 │   ├── watchlist.py       # 관심종목 JSON 저장/관리
 │   ├── notify.py          # 알림 채널(콘솔/파일, 이메일·Slack 확장점)
-│   └── env.py             # Streamlit Secrets → 환경변수 브리지
+│   ├── env.py             # Streamlit Secrets → 환경변수 브리지
+│   ├── cache.py           # 날짜 키 디스크 캐시(대량 횡단면 조회용)
+│   ├── universe.py        # 지수 구성종목(코스피200·코스닥150)
+│   ├── fundamentals.py    # PER·PBR·ROE·배당·시총·모멘텀 스냅샷
+│   └── providers/         # 시장별 데이터 어댑터(krx.py = pykrx, 향후 us.py)
 ├── trend_service/         # 추세 판정 도메인 (core 재사용)
 │   ├── engine.py          # evaluate_price(포인트인타임 코어) + analyze(시장맥락)
 │   └── backtest.py        # 포인트인타임 백테스트
-└── tests/                 # test_indicators / test_engine / test_watchlist / test_backtest / test_krx_api
+├── quant_service/         # 퀀트 도메인
+│   ├── factors.py         # 팩터 z-score(밸류·퀄리티·모멘텀)
+│   └── screener.py        # 합성점수 랭킹·상위 N 선정
+└── tests/                 # indicators/engine/watchlist/backtest/krx_api/factors/screener
 ```
 
 **계층 분리**: 공용 `core/`(데이터·지표·차트) → 도메인 `trend_service/`(엔진) → UI(`app.py`, `pages/`).

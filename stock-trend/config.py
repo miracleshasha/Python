@@ -71,3 +71,16 @@ DEFAULT_PERIOD = "1y"
 CACHE_TTL_SECONDS = 60 * 15        # 15분 캐시
 MARKET_INDEX_VIX = "^VIX"
 MARKET_INDEX_SOX = "^SOX"
+
+# --- 퀀트 (스크리너/포트폴리오) ---
+# 유니버스: pykrx 지수 코드 (코스피200=1028, 코스닥150=2203)
+QUANT_UNIVERSE_INDICES = {"코스피200": "1028", "코스닥150": "2203"}
+# 지수 코드 → 소속 시장(펀더멘털 횡단면 조회용)
+QUANT_INDEX_MARKET = {"1028": "KOSPI", "2203": "KOSDAQ"}
+# 팩터 가중치(밸류/퀄리티/모멘텀). 합이 100이 아니어도 내부에서 정규화.
+QUANT_FACTOR_WEIGHTS = {"value": 40, "quality": 30, "momentum": 30}
+QUANT_MOMENTUM_MONTHS = 6          # 모멘텀 측정 기간(개월)
+QUANT_TOP_N = 20                   # 상위 몇 종목 선정
+QUANT_ZSCORE_CLIP = 3.0            # z-score 이상치 클리핑(±)
+QUANT_EXCLUDE_PREFERRED = True     # 우선주(코드 끝자리≠0) 제외
+QUANT_REBALANCE = "quarterly"      # 리밸런싱 주기(백테스트용): quarterly/monthly
