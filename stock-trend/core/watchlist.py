@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 
-from trend_service.data import normalize_ticker
+from core.markets import normalize_ticker
 
 
 def _data_dir() -> Path:

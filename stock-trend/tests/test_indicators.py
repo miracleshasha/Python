@@ -9,7 +9,7 @@ import pytest
 # stock-trend 루트를 import 경로에 추가
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from trend_service import indicators as ind  # noqa: E402
+from core import indicators as ind  # noqa: E402
 
 
 def _series(values):

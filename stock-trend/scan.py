@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import sys
 
-from trend_service import data as data_mod
-from trend_service import watchlist
+from core import data as data_mod
+from core import watchlist
+from core.notify import notify
 from trend_service.engine import analyze
-from trend_service.notify import notify
 
 
 def scan(tickers: list[str], period: str = "1y", include_neutral: bool = False) -> int:

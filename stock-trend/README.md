@@ -71,26 +71,38 @@ streamlit run app.py
 
 ## 구조
 
+Streamlit **멀티페이지** 앱이며, 공용 로직은 `core/` 패키지에, 도메인은 `trend_service/`
+(추후 `quant_service/`)에 둡니다. 추세 판정과 향후 퀀트 기능이 데이터·지표·차트·관심종목을
+공유하며 **공존**합니다.
+
 ```
 stock-trend/
-├── app.py                 # Streamlit UI (단일분석 / 워치리스트 / 백테스트 탭)
+├── app.py                 # 홈/랜딩 (멀티페이지 엔트리)
+├── pages/
+│   └── 1_📈_추세판정.py    # 추세 판정 UI (단일분석 / 워치리스트 / 백테스트)
 ├── scan.py                # 워치리스트 자동 스캔 CLI (cron용)
-├── config.py              # 지표 파라미터 · 판정 임계값 · 가중치 · 백테스트 설정
+├── ui.py                  # 공통 UI 컴포넌트/CSS
+├── config.py              # 지표·판정·백테스트·(향후)퀀트 파라미터
 ├── requirements.txt
-├── trend_service/
+├── core/                  # ★ 공용 인프라 (추세·퀀트 공유)
+│   ├── markets.py         # 시장 구분(KR/US) · 티커 정규화 (미국 확장 seam)
 │   ├── data.py            # 금융위 API/yfinance OHLCV + VIX/SOX + pykrx 투자자 수급
+│   ├── krx_api.py         # 금융위 주식시세정보 API 클라이언트
 │   ├── indicators.py      # 지표 계산 (순수 함수)
-│   ├── engine.py          # evaluate_price(포인트인타임 코어) + analyze(시장맥락 포함)
 │   ├── charts.py          # plotly 차트
 │   ├── watchlist.py       # 관심종목 JSON 저장/관리
-│   ├── backtest.py        # 포인트인타임 백테스트
-│   └── notify.py          # 알림 채널(콘솔/파일, 이메일·Slack 확장점)
-└── tests/                 # test_indicators / test_engine / test_watchlist / test_backtest
+│   ├── notify.py          # 알림 채널(콘솔/파일, 이메일·Slack 확장점)
+│   └── env.py             # Streamlit Secrets → 환경변수 브리지
+├── trend_service/         # 추세 판정 도메인 (core 재사용)
+│   ├── engine.py          # evaluate_price(포인트인타임 코어) + analyze(시장맥락)
+│   └── backtest.py        # 포인트인타임 백테스트
+└── tests/                 # test_indicators / test_engine / test_watchlist / test_backtest / test_krx_api
 ```
 
-로직 계층(`trend_service`)과 UI(`app.py`)를 분리해, 추후 FastAPI 등 다른 프론트에서
-그대로 재사용할 수 있습니다. `engine.evaluate_price()`는 네트워크 없이 가격만으로 판정하는
-포인트인타임 코어로, 백테스트가 과거 시점마다 look-ahead 없이 재사용합니다.
+**계층 분리**: 공용 `core/`(데이터·지표·차트) → 도메인 `trend_service/`(엔진) → UI(`app.py`, `pages/`).
+미국 확장은 `core/markets.py`·(향후) `core/providers/`에 시장 어댑터를 추가하면 됩니다.
+`engine.evaluate_price()`는 네트워크 없이 가격만으로 판정하는 포인트인타임 코어로,
+백테스트가 과거 시점마다 look-ahead 없이 재사용합니다.
 
 ## 자동 스캔 (알림)
 

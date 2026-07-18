@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 def _fresh_module(tmp_path, monkeypatch):
     monkeypatch.setenv("STOCK_TREND_DATA", str(tmp_path))
-    from trend_service import watchlist
+    from core import watchlist
     importlib.reload(watchlist)
     return watchlist
 

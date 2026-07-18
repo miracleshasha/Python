@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 import config
-from trend_service import data as data_mod
-from trend_service import indicators as ind
+from core import data as data_mod
+from core import indicators as ind
 
 
 @dataclass

@@ -10,10 +10,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 import config
-from trend_service.engine import TrendResult
 
 
-def build_chart(df: pd.DataFrame, result: TrendResult, title: str = "") -> go.Figure:
+def build_chart(df: pd.DataFrame, result, title: str = "") -> go.Figure:
     """가격/거래량/RSI/MACD 4단 차트."""
     ind = result.indicators
     fig = make_subplots(
