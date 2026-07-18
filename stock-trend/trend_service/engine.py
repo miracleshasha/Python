@@ -200,7 +200,11 @@ def _market_context(stock: data_mod.StockData, period: str):
                 bear += config.BEAR_WEIGHTS["foreign_net_sell"]
                 reasons.append(Reason("foreign_net_sell", "외국인 5일 연속 순매도", "bear"))
         else:
-            reasons.append(Reason("foreign_na", "외국인 수급 데이터 없음(pykrx 미설치)", "na"))
+            if not data_mod.pykrx_installed():
+                msg = "외국인 수급: pykrx 미설치 (pip install pykrx)"
+            else:
+                msg = "외국인 수급 조회 실패 (KRX 네트워크·해외 서버 차단·휴장 가능)"
+            reasons.append(Reason("foreign_na", msg, "na"))
 
     return bull, bear, reasons
 

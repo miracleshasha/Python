@@ -3,7 +3,8 @@
 국내 종목 시세는 **금융위원회 주식시세정보 API(data.go.kr)** 를 우선 사용하고
 (환경변수 DATA_GO_KR_API_KEY 필요), 실패 시 yfinance로 폴백한다.
 미국 종목과 시장심리 지수(VIX, SOX)는 yfinance로 조회한다.
-외국인/기관/개인 수급은 국내 종목에 한해 pykrx가 설치돼 있을 때 선택적으로 조회한다.
+외국인/기관/개인 수급은 금융위 API엔 없는 데이터라, 국내 종목에 한해 pykrx(KRX)로 조회한다.
+(pykrx는 기본 의존성이나 국내 네트워크가 필요 — 실패 시 None 폴백)
 """
 from __future__ import annotations
 
@@ -147,6 +148,15 @@ def get_market_index(symbol: str, period: str = config.DEFAULT_PERIOD) -> pd.Dat
         return _fetch_cached(symbol, period, _time_bucket()).copy()
     except Exception:
         return _empty_ohlcv()
+
+
+def pykrx_installed() -> bool:
+    """pykrx 라이브러리 설치 여부."""
+    try:
+        import pykrx  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
 
 def get_foreign_netbuy(ticker: str, days: int = 10) -> Optional[pd.Series]:
