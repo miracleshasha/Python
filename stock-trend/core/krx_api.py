@@ -90,6 +90,79 @@ def _extract_items(data: dict) -> list[dict]:
         return []
 
 
+def _total_count(data: dict) -> int:
+    try:
+        return int(data["response"]["body"]["totalCount"])
+    except (KeyError, TypeError, ValueError):
+        return 0
+
+
+def recent_business_days(n: int = 8) -> list[str]:
+    """최근 영업일 후보(YYYYMMDD). 주말 제외, n일치. 데이터 미공개일 대비 여러 날 시도용."""
+    days, d = [], datetime.now()
+    while len(days) < n:
+        if d.weekday() < 5:  # 월~금
+            days.append(d.strftime("%Y%m%d"))
+        d -= timedelta(days=1)
+    return days
+
+
+def _request_all(params: dict, page_size: int = 1000, max_pages: int = 6) -> list[dict]:
+    """likeSrtnCd 없이 임의 조건으로 전체 페이지를 순회 조회. 실패 시 빈 리스트."""
+    if requests is None or not api_key():
+        return []
+    out: list[dict] = []
+    for page in range(1, max_pages + 1):
+        base = {"serviceKey": api_key(), "resultType": "json",
+                "numOfRows": page_size, "pageNo": page}
+        base.update(params)
+        try:
+            resp = requests.get(ENDPOINT, params=base, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception:
+            break
+        items = _extract_items(data)
+        if not items:
+            break
+        out.extend(items)
+        if len(out) >= _total_count(data) or len(items) < page_size:
+            break
+    return out
+
+
+def parse_listing(items: list[dict], market_cls: Optional[str] = None) -> pd.DataFrame:
+    """getStockPriceInfo item → 상장목록 DataFrame[ticker,name,market,mktcap]."""
+    rows = []
+    for it in items:
+        code = str(it.get("srtnCd", "")).zfill(6)
+        name = it.get("itmsNm")
+        if not code.isdigit() or not name:
+            continue
+        try:
+            mktcap = float(it.get("mrktTotAmt")) if it.get("mrktTotAmt") else float("nan")
+        except (ValueError, TypeError):
+            mktcap = float("nan")
+        rows.append({"ticker": code, "name": str(name),
+                     "market": it.get("mrktCtg") or market_cls or "", "mktcap": mktcap})
+    if not rows:
+        return pd.DataFrame(columns=["ticker", "name", "market", "mktcap"])
+    return pd.DataFrame(rows).drop_duplicates("ticker").reset_index(drop=True)
+
+
+def fetch_listing(market_cls: str = "KOSPI") -> pd.DataFrame:
+    """시장(KOSPI/KOSDAQ) 전체 상장목록을 금융위 API로 조회(전역 접근). 실패 시 빈 DF.
+
+    최근 영업일부터 데이터가 나오는 날을 찾아 페이지 순회 조회한다.
+    """
+    for bas in recent_business_days(8):
+        items = _request_all({"basDt": bas, "mrktCls": market_cls})
+        df = parse_listing(items, market_cls)
+        if not df.empty:
+            return df
+    return pd.DataFrame(columns=["ticker", "name", "market", "mktcap"])
+
+
 def parse_ohlcv(items: list[dict], code: str) -> pd.DataFrame:
     """item 리스트 → OHLCV DataFrame(yfinance와 동일한 형태). 코드 정확일치만 사용."""
     rows = []

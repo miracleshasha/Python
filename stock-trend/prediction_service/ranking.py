@@ -69,6 +69,7 @@ class RankingResult:
     down: pd.DataFrame = field(default_factory=pd.DataFrame)    # 하락 top N
     macro: Optional[macro_mod.MacroRegime] = None
     universe_size: int = 0
+    flows_available: bool = True   # 수급 데이터 사용 가능 여부(클라우드=False일 수 있음)
     error: str = ""
 
 
@@ -120,14 +121,21 @@ def build_ranking(
 
     trend = _trend_scores(tickers, period, progress)
     flow_df = flows_mod.get_flows(market)
-    flow = flows_mod.smart_money(flow_df).reindex(trend.index) if not flow_df.empty else pd.Series(0.0, index=trend.index)
+    flows_available = not flow_df.empty
+    flow = (flows_mod.smart_money(flow_df).reindex(trend.index)
+            if flows_available else pd.Series(0.0, index=trend.index))
     regime = macro_mod.market_regime(period)
 
     if trend.empty:
-        return RankingResult(macro=regime, universe_size=len(tickers),
+        return RankingResult(macro=regime, universe_size=len(tickers), flows_available=flows_available,
                              error="추세점수 계산 실패(시세 조회 불가 — 국내망/pykrx 필요)")
 
-    score = blend(trend, flow.fillna(0), regime.z, weights)
+    # 수급 데이터가 없으면(클라우드 등) 수급 가중치를 추세·매크로로 재분배
+    eff_weights = dict(weights)
+    if not flows_available:
+        eff_weights = {"trend": weights.get("trend", 0), "macro": weights.get("macro", 0)}
+
+    score = blend(trend, flow.fillna(0), regime.z, eff_weights)
     up, down = split_top_bottom(score, top_n)
 
     def _frame(s: pd.Series) -> pd.DataFrame:
@@ -142,4 +150,4 @@ def build_ranking(
         return df
 
     return RankingResult(up=_frame(up), down=_frame(down), macro=regime,
-                         universe_size=len(tickers))
+                         universe_size=len(tickers), flows_available=flows_available)
