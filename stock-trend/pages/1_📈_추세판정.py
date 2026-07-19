@@ -62,6 +62,12 @@ with st.sidebar:
     st.caption("이동평균·거래량/OBV·RSI/MACD·볼린저·엔벨로프·VIX/SOX 종합 판정")
 
     st.markdown("### 🔎 종목 검색")
+    # 종목명으로 검색 → 티커 자동 입력 후 즉시 분석 (선택이 바뀔 때만)
+    searched = ui.ticker_search_box("trend_name_search")
+    if searched and searched != st.session_state.get("last_searched"):
+        st.session_state.last_searched = searched
+        st.session_state.ticker = searched
+        run_analysis(searched, st.session_state.period)
     s_ticker = st.text_input("티커", value=st.session_state.ticker,
                              placeholder="한국 6자리(005930) / 미국 심볼(AAPL)", key="search_input")
     s_period = st.selectbox("기간", list(PERIOD_MAP),

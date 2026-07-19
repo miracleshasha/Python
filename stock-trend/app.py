@@ -49,6 +49,15 @@ with c2:
     st.page_link("pages/2_🧮_퀀트_스크리너.py", label="퀀트 스크리너 열기 →")
 
 st.divider()
+st.markdown(
+    """
+    ### 📊 상승/하락 예측 랭킹 *(코스피200)*
+    추세판정 점수 + 수급(외국인·기관·개인) + 매크로를 블렌드해 **상승 가능성 TOP / 하락 가능성 TOP**을 뽑습니다.
+    """
+)
+st.page_link("pages/3_📊_상승하락_예측.py", label="상승/하락 예측 열기 →")
+
+st.divider()
 if krx_api.api_key():
     st.caption("🟢 국내 시세: 금융위원회 주식시세정보 API · 미국 시세: yfinance")
 else:

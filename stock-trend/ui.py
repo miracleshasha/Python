@@ -163,3 +163,21 @@ def reason_columns(reasons) -> None:
 
 def section_title(text: str) -> None:
     st.markdown(f"<div class='sec-title'>{text}</div>", unsafe_allow_html=True)
+
+
+def ticker_search_box(key: str, label: str = "🔎 종목명 검색") -> str | None:
+    """종목명으로 검색해 티커를 반환한다. 목록 조회 실패 시 None.
+
+    상장목록(core.listings)을 selectbox(검색 가능)로 제공 → 선택 시 티커 반환.
+    """
+    from core import listings
+    listing = listings.get_listing()
+    if listing is None or listing.empty:
+        st.caption("종목명 목록을 불러오지 못했습니다(국내망/의존성 필요). 아래에 티커를 직접 입력하세요.")
+        return None
+    options = {"(종목명으로 검색·선택)": None}
+    for _, r in listing.iterrows():
+        options[f"{r['name']} ({r['ticker']})"] = str(r["ticker"])
+    choice = st.selectbox(label, list(options.keys()), key=key,
+                          help="종목명을 입력하면 자동완성됩니다.")
+    return options.get(choice)
