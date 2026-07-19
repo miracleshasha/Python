@@ -1,14 +1,30 @@
 """종목명 ↔ 티커 매핑 (종목명 검색용).
 
-FinanceDataReader로 KRX 전체 상장목록(Code/Name/Market)을 1회 조회해 캐시한다.
-fdr가 없거나 조회 실패 시 pykrx 유니버스(코스피200·코스닥150) 이름으로 폴백한다.
+소스 우선순위 (클라우드/해외에서도 되도록):
+  1) 금융위 주식시세정보 API (전역 접근, DATA_GO_KR_API_KEY 필요)
+  2) FinanceDataReader (KRX 전체목록)
+  3) pykrx 유니버스(코스피200·코스닥150) 이름 — 최후 폴백
+결과는 날짜 키로 디스크 캐시한다.
 """
 from __future__ import annotations
 
 import pandas as pd
 
 from core import cache
+from core import krx_api
 from core.providers import krx
+
+
+def _from_datagokr() -> pd.DataFrame:
+    """금융위 API로 KOSPI+KOSDAQ 상장목록(전역 접근). 키 없으면 빈 DF."""
+    if not krx_api.api_key():
+        return pd.DataFrame()
+    parts = [krx_api.fetch_listing("KOSPI"), krx_api.fetch_listing("KOSDAQ")]
+    parts = [p for p in parts if not p.empty]
+    if not parts:
+        return pd.DataFrame()
+    df = pd.concat(parts).drop_duplicates("ticker").reset_index(drop=True)
+    return df[["ticker", "name"] + [c for c in ("market",) if c in df.columns]]
 
 
 def _from_fdr() -> pd.DataFrame:
@@ -52,8 +68,11 @@ def get_listing() -> pd.DataFrame:
     key = f"listing_{krx.business_day()}"
 
     def _compute() -> pd.DataFrame:
-        df = _from_fdr()
-        return df if not df.empty else _from_pykrx_universe()
+        for source in (_from_datagokr, _from_fdr, _from_pykrx_universe):
+            df = source()
+            if df is not None and not df.empty:
+                return df
+        return pd.DataFrame()
 
     return cache.get_or_compute(key, _compute)
 

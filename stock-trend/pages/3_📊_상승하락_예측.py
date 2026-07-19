@@ -94,6 +94,9 @@ if run:
         )
     elif not result.up.empty:
         st.success(f"코스피200 {result.universe_size}종목 분석 완료")
+        if not result.flows_available:
+            st.info("ℹ️ 수급(외국인·기관) 데이터를 불러오지 못해 **수급 미반영**(가중치를 추세·매크로로 "
+                    "재분배)했습니다. 수급까지 반영하려면 국내 네트워크(pykrx)에서 실행하세요.")
         col_up, col_down = st.columns(2)
         with col_up:
             st.markdown("### 🟢 상승 가능성 TOP")

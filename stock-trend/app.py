@@ -59,6 +59,7 @@ st.page_link("pages/3_📊_상승하락_예측.py", label="상승/하락 예측 
 
 st.divider()
 if krx_api.api_key():
-    st.caption("🟢 국내 시세: 금융위원회 주식시세정보 API · 미국 시세: yfinance")
+    st.caption("🟢 국내 시세·종목명·유니버스: 금융위원회 API(클라우드 동작) · 미국·매크로: yfinance")
+    st.caption("ℹ️ 수급(외국인·기관)·펀더멘털(PER/PBR)은 국내망(pykrx)에서만 실데이터 — 클라우드에선 미반영/근사")
 else:
-    st.caption("⚪ 국내 시세: yfinance 폴백 (환경변수 `DATA_GO_KR_API_KEY` 설정 시 금융위 API) · 미국: yfinance")
+    st.caption("⚪ `DATA_GO_KR_API_KEY` 미설정 → 국내 데이터 제한. 설정 시 클라우드에서도 시세·종목명·유니버스 동작")
