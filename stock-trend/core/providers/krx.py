@@ -95,6 +95,41 @@ def close_snapshot(market: str, date: Optional[str] = None) -> pd.Series:
         return pd.Series(dtype=float)
 
 
+def net_purchases(market: str, start: str, end: str, investor: str) -> pd.Series:
+    """기간 내 투자자별 종목 순매수(거래대금) 횡단면.
+
+    반환 Series: index=티커, value=순매수거래대금(+매수/-매도). 실패 시 빈 Series.
+    investor 예: '외국인', '기관합계', '개인'.
+    """
+    stock = _krx()
+    if stock is None:
+        return pd.Series(dtype=float)
+    try:
+        df = stock.get_market_net_purchases_of_equities_by_ticker(start, end, market, investor)
+        if df is None or df.empty:
+            return pd.Series(dtype=float)
+        col = "순매수거래대금" if "순매수거래대금" in df.columns else df.columns[-1]
+        s = df[col].astype(float)
+        s.index = [str(t).zfill(6) for t in s.index]
+        return s
+    except Exception:
+        return pd.Series(dtype=float)
+
+
+def ticker_list(market: str) -> list[str]:
+    """시장 전체 종목 티커 리스트(코스피/코스닥/전체). 실패 시 빈 리스트."""
+    stock = _krx()
+    if stock is None:
+        return []
+    try:
+        return list(stock.get_market_ticker_list(market=market))
+    except Exception:
+        try:
+            return list(stock.get_market_ticker_list())
+        except Exception:
+            return []
+
+
 def ticker_name(ticker: str) -> Optional[str]:
     stock = _krx()
     if stock is None:

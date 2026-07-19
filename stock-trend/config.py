@@ -84,3 +84,9 @@ QUANT_TOP_N = 20                   # 상위 몇 종목 선정
 QUANT_ZSCORE_CLIP = 3.0            # z-score 이상치 클리핑(±)
 QUANT_EXCLUDE_PREFERRED = True     # 우선주(코드 끝자리≠0) 제외
 QUANT_REBALANCE = "quarterly"      # 리밸런싱 주기(백테스트용): quarterly/monthly
+
+# --- 상승/하락 예측 랭킹 ---
+PREDICT_UNIVERSE = "코스피200"      # 대상 유니버스(코스피200 한정)
+PREDICT_WEIGHTS = {"trend": 50, "flow": 30, "macro": 20}  # 추세/수급/매크로 가중치
+PREDICT_TOP_N = 20                 # 상승·하락 각 상위 N
+PREDICT_FLOW_DAYS = 20             # 수급(투자자 순매수) 측정 기간(영업일)

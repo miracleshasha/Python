@@ -70,6 +70,9 @@ streamlit run app.py
 - **🔔 자동 스캔** — `scan.py`가 워치리스트를 순회해 매수/청산 신호를 알림 로그로 남김(cron 연동)
 - **🧮 퀀트 스크리너** — 코스피200·코스닥150 유니버스에서 **밸류·퀄리티·모멘텀** 팩터
   z-score 가중합(기본 40/30/30)으로 종목 랭킹. 데이터는 pykrx(국내 네트워크 필요)
+- **📊 상승/하락 예측 랭킹**(코스피200 한정) — 추세판정 점수 + 수급(외국인·기관·개인) + 매크로(KOSPI·VIX·SOX)를
+  블렌드(기본 50/30/20)해 **상승 가능성 TOP / 하락 가능성 TOP**을 산출
+- **🔎 종목명 검색** — 종목명으로 검색하면 티커가 자동 입력(추세판정 페이지)
 
 ## 구조
 
@@ -82,7 +85,8 @@ stock-trend/
 ├── app.py                 # 홈/랜딩 (멀티페이지 엔트리)
 ├── pages/
 │   ├── 1_📈_추세판정.py    # 추세 판정 UI (단일분석 / 워치리스트 / 백테스트)
-│   └── 2_🧮_퀀트_스크리너.py # 팩터(밸류·퀄리티·모멘텀) 랭킹
+│   ├── 2_🧮_퀀트_스크리너.py # 팩터(밸류·퀄리티·모멘텀) 랭킹
+│   └── 3_📊_상승하락_예측.py  # 코스피200 상승/하락 예측 랭킹
 ├── scan.py                # 워치리스트 자동 스캔 CLI (cron용)
 ├── ui.py                  # 공통 UI 컴포넌트/CSS
 ├── config.py              # 지표·판정·백테스트·(향후)퀀트 파라미터
@@ -99,6 +103,9 @@ stock-trend/
 │   ├── cache.py           # 날짜 키 디스크 캐시(대량 횡단면 조회용)
 │   ├── universe.py        # 지수 구성종목(코스피200·코스닥150)
 │   ├── fundamentals.py    # PER·PBR·ROE·배당·시총·모멘텀 스냅샷
+│   ├── flows.py           # 투자자별 순매수(외국인·기관·개인) 횡단면
+│   ├── macro.py           # 매크로 시장 레짐(KOSPI·VIX·SOX)
+│   ├── listings.py        # 종목명↔티커(종목명 검색, fdr+폴백)
 │   └── providers/         # 시장별 데이터 어댑터(krx.py = pykrx, 향후 us.py)
 ├── trend_service/         # 추세 판정 도메인 (core 재사용)
 │   ├── engine.py          # evaluate_price(포인트인타임 코어) + analyze(시장맥락)
@@ -106,7 +113,9 @@ stock-trend/
 ├── quant_service/         # 퀀트 도메인
 │   ├── factors.py         # 팩터 z-score(밸류·퀄리티·모멘텀)
 │   └── screener.py        # 합성점수 랭킹·상위 N 선정
-└── tests/                 # indicators/engine/watchlist/backtest/krx_api/factors/screener
+├── prediction_service/    # 상승/하락 예측 랭킹 도메인
+│   └── ranking.py         # 추세+수급+매크로 블렌드 → 상승/하락 TOP
+└── tests/                 # indicators/engine/watchlist/backtest/krx_api/factors/screener/ranking
 ```
 
 **계층 분리**: 공용 `core/`(데이터·지표·차트) → 도메인 `trend_service/`(엔진) → UI(`app.py`, `pages/`).
