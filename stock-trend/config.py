@@ -90,3 +90,15 @@ PREDICT_UNIVERSE = "코스피200"      # 대상 유니버스(코스피200 한정
 PREDICT_WEIGHTS = {"trend": 50, "flow": 30, "macro": 20}  # 추세/수급/매크로 가중치
 PREDICT_TOP_N = 20                 # 상승·하락 각 상위 N
 PREDICT_FLOW_DAYS = 20             # 수급(투자자 순매수) 측정 기간(영업일)
+
+# --- 한국투자증권(KIS) Open API ---
+# 인증정보는 환경변수/Secrets로만 주입(레포 커밋 금지):
+#   KIS_APP_KEY, KIS_APP_SECRET, (선택) KIS_ENV=real|vps
+KIS_APP_KEY_ENV = "KIS_APP_KEY"
+KIS_APP_SECRET_ENV = "KIS_APP_SECRET"
+KIS_ENV_ENV = "KIS_ENV"            # real(실전) | vps(모의)
+KIS_BASE = {
+    "real": "https://openapi.koreainvestment.com:9443",
+    "vps": "https://openapivts.koreainvestment.com:29443",
+}
+KIS_MINUTE_COUNT = 30              # 분봉 표시 개수(최근)

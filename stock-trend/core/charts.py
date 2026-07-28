@@ -12,6 +12,20 @@ from plotly.subplots import make_subplots
 import config
 
 
+def minute_chart(df: pd.DataFrame, title: str = "분봉") -> go.Figure:
+    """당일 분봉 캔들 + 거래량(간단 2단)."""
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28],
+                        vertical_spacing=0.04, subplot_titles=(title, "거래량"))
+    fig.add_trace(go.Candlestick(x=df.index, open=df["Open"], high=df["High"],
+                                 low=df["Low"], close=df["Close"], name="분봉",
+                                 showlegend=False), row=1, col=1)
+    fig.add_trace(go.Bar(x=df.index, y=df["Volume"], name="거래량", showlegend=False),
+                  row=2, col=1)
+    fig.update_layout(height=380, xaxis_rangeslider_visible=False,
+                      margin=dict(l=40, r=20, t=40, b=20))
+    return fig
+
+
 def build_chart(df: pd.DataFrame, result, title: str = "") -> go.Figure:
     """가격/거래량/RSI/MACD 4단 차트."""
     ind = result.indicators

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 
-_KEYS = ("DATA_GO_KR_API_KEY",)
+_KEYS = ("DATA_GO_KR_API_KEY", "KIS_APP_KEY", "KIS_APP_SECRET", "KIS_ENV")
 
 
 def sync_secrets() -> None:

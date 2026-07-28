@@ -16,6 +16,7 @@ from core import data as data_mod
 from core import krx_api
 from core import watchlist
 from core.env import sync_secrets
+from core.providers import kis
 from trend_service import backtest as bt
 from trend_service.engine import analyze
 
@@ -123,6 +124,26 @@ tab_single, tab_watch, tab_back = st.tabs(["🔍 단일 분석", "⭐ 워치리�
 # --------------------------------------------------------------------------
 # 탭 1: 단일 분석 (세션 상태의 분석 결과를 렌더)
 # --------------------------------------------------------------------------
+def render_realtime(stock):
+    """KIS 실시간 현재가 + 당일 분봉 (KIS 키 있을 때, 국내 종목)."""
+    if not (stock.is_korean and kis.available()):
+        return
+    ui.section_title("실시간 시세 · 분봉 (KIS)")
+    price = kis.current_price(stock.ticker)
+    if price:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("현재가", f"{price.get('price', float('nan')):,.0f}원",
+                  f"{price.get('change_pct', float('nan')):+.2f}%")
+        c2.metric("전일대비", f"{price.get('change', float('nan')):,.0f}")
+        c3.metric("누적거래량", f"{price.get('volume', float('nan')):,.0f}")
+    mdf = kis.minute_candles(stock.ticker)
+    if mdf.empty:
+        st.caption("분봉 데이터를 불러오지 못했습니다(장 시작 전·휴장·조회 한도 등).")
+    else:
+        st.plotly_chart(charts.minute_chart(mdf.tail(config.KIS_MINUTE_COUNT), "당일 분봉"),
+                        use_container_width=True)
+
+
 def render_investor_flows(stock):
     ui.section_title("투자자별 수급 (외국인·기관·개인)")
     if not stock.is_korean:
@@ -172,6 +193,7 @@ with tab_single:
         st.plotly_chart(charts.build_chart(stock.ohlcv, result, title=stock.display_name),
                         use_container_width=True)
 
+        render_realtime(stock)
         render_investor_flows(stock)
 
 
